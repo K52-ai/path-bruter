@@ -1,0 +1,16 @@
+admin
+login
+panel
+cpanel
+wp-admin
+dashboard
+api
+config
+.env
+backup
+.git
+robots.txt
+test
+dev
+private
+secret
