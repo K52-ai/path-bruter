@@ -118,6 +118,6 @@ MIT License. See LICENSE for details.
 
 K52-ai
 🔗 GitHub Repository
+<img width="1102" height="600" alt="image" src="https://github.com/user-attachments/assets/be2934bd-dda7-47a5-a081-6d9cbd4027d7" />
 
-<img width="1365" height="579" alt="image" src="https://github.com/user-attachments/assets/c526a7cf-52c0-48a7-a51a-c9fd5780b2fb" />
 
