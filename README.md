@@ -1,94 +1,120 @@
 🚀 PATH-BRUTER
-⚡ A fast HTTP path discovery tool written in Go.
-🔎 PATH-BRUTER is a command-line tool for authorized web security testing. It checks candidate URL paths using a wordlist, analyzes HTTP status codes, identifies redirects and potentially protected paths, detects basic Web Application Firewall (WAF) indicators, and saves matching URLs to a file.
-✨ FEATURES
-⚡ Concurrent HTTP requests
-📂 Custom wordlist support
-🌐 HTTP status code classification
-🛡️ Basic WAF detection
-🔄 Redirect detection
-🔍 Basic soft-404 filtering
-💾 Automatic results saving to found.txt
-📋 REQUIREMENTS
-🐧 Linux
-🐹 Go 1.21 or later
-📦 Git
-📝 A wordlist text file
-🛠️ INSTALLATION
-🔄 Update package lists
-⌨️ Command:
+
+⚡ A fast HTTP path discovery tool written in Go
+PATH-BRUTER is a command-line tool for authorized web security testing. It checks candidate URL paths using a wordlist, analyzes HTTP status codes, detects basic WAF indicators, and saves matching URLs to a file.
+
+✨ Features
+
+* ⚡ Concurrent HTTP requests
+* 📂 Custom wordlist support
+* 🌐 HTTP status code classification
+* 🛡️ Basic WAF detection
+* 🔄 Redirect detection
+* 🔍 Basic soft-404 filtering
+* 💾 Saves results to found.txt
+
+📋 Requirements
+
+* 🐧 Linux
+* 🐹 Go 1.21 or later
+* 📦 Git
+* 📝 A wordlist text file
+
+🛠️ Installation
+
+1. Update package lists
+
 sudo apt update
-📦 Install Git and Go
-⌨️ Command:
+
+2. Install Git and Go
+
 sudo apt install -y git golang-go
-🔎 Check Go version
-⌨️ Command:
+
+3. Check your Go version
+
 go version
-⚠️ Go 1.21 or later is required. If your version is older, install a newer version from https://go.dev/dl/
-📥 DOWNLOAD THE TOOL
-📂 Clone the repository
-⌨️ Command:
+
+Go 1.21 or later is required. If your version is older, install a newer version from https://go.dev/dl/
+4. Clone the repository
+
 git clone https://github.com/K52-ai/path-bruter.git
-📁 Enter the project directory
-⌨️ Command:
+
+5. Enter the project directory
+
 cd path-bruter
-📦 Download dependencies
-⌨️ Command:
+
+6. Download dependencies
+
 go mod download
-⚙️ BUILD THE TOOL
-🔨 Compile the program
-⌨️ Command:
+
+7. Build the tool
+
 go build -o path-bruter main.go
-🔑 Make the executable runnable
-⌨️ Command:
+
+8. Make it executable
+
 chmod +x path-bruter
-▶️ USAGE
-🚀 Start PATH-BRUTER
-⌨️ Command:
+
+▶️ Usage
+
+1. Start PATH-BRUTER
+
 ./path-bruter
-🎯 Enter your authorized target URL when prompted
-⌨️ Example:
-https://example.com
-📂 Enter your wordlist filename when prompted
-⌨️ Example:
-wordlist.txt
-📝 CREATE A WORDLIST
-📄 Create a wordlist file
-⌨️ Command:
+
+2. Enter your authorized target URL when prompted
+Example: https://example.com
+3. Enter your wordlist filename when prompted
+Example: wordlist.txt
+
+📝 Create a Wordlist
+
+Create a file:
+
 nano wordlist.txt
-✍️ Add candidate paths, one per line
+
+Example contents:
+
 admin
 login
 api
 robots.txt
 sitemap.xml
-💾 Save the file and exit the editor.
-📊 RESULTS
-🟢 OK — selected successful HTTP status codes
-🔒 PROTECTED — HTTP 401 or 403
-🔄 REDIRECT — HTTP redirect responses
-📁 Results are saved to found.txt
-👀 View results
-⌨️ Command:
+
+Save the file and exit the editor.
+
+📊 Results
+
+* 🟢 OK — selected successful HTTP status codes
+* 🔒 PROTECTED — HTTP 401 or 403
+* 🔄 REDIRECT — HTTP redirect responses
+    Results are saved to found.txt.
+    View results
+
 cat found.txt
-🔢 Count saved entries
-⌨️ Command:
+
+Count saved entries
+
 wc -l found.txt
-🖼️ SCREENSHOTS
-🖥️ Tool Interface — assets/startup.png
-🔍 Path Discovery — assets/scan-output.png
-📊 Final Results — assets/results.png
-📌 Upload your actual screenshots to the assets directory using the filenames above.
-⚠️ IMPORTANT NOTES
-🛡️ WAF detection uses basic signatures and may not identify every WAF.
-🔍 Soft-404 filtering may produce inaccurate results.
-🔐 TLS certificate verification is disabled in the current implementation.
-⚡ Request concurrency is configured in the source code.
-⚖️ RESPONSIBLE USE
-☑ Use PATH-BRUTER only on systems you own or have explicit permission to test.
-⚠️ Respect server rate limits and applicable laws.
-📜 LICENSE
+
+🖼️ Screenshots
+
+Add your actual screenshots to the assets/ folder, then use:
+⚠️ Important Notes
+
+* 🛡️ WAF detection uses basic signatures and may not identify every WAF.
+* 🔍 Soft-404 filtering may produce inaccurate results.
+* 🔐 TLS certificate verification is disabled in the current implementation.
+* ⚡ Request concurrency is configured in the source code.
+
+⚖️ Responsible Use
+
+Use PATH-BRUTER only on systems you own or have explicit permission to test. Respect server rate limits and applicable laws.
+
+📜 License
+
 MIT License. See LICENSE for details.
-👨‍💻 AUTHOR
-🔥 K52-ai
-🔗 GitHub: https://github.com/K52-ai/path-bruter
+
+👨‍💻 Author
+
+K52-ai
+🔗 GitHub Repository
