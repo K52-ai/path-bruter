@@ -3,15 +3,20 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/google/uuid"
+	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -25,15 +30,6 @@ var (
 	protectedCodes = map[int]bool{401: true, 403: true}
 	redirectCodes  = map[int]bool{301: true, 302: true, 303: true, 307: true, 308: true}
 )
-
-type Result struct {
-	URL      string
-	Status   int
-	Length   int
-	Location string
-	WAF      string
-	Label    string
-}
 
 var wafSignatures = map[string]string{
 	"cloudflare":   "Cloudflare",
@@ -49,6 +45,129 @@ var wafSignatures = map[string]string{
 	"wordfence":    "Wordfence",
 }
 
+// ---------------------------------------------------------------------------
+// TrueColor gradient — FF007F → 8B00FF → 0055FF → FF0000
+// ---------------------------------------------------------------------------
+type RGB struct{ R, G, B uint8 }
+
+var gradientStops = []RGB{
+	{0xFF, 0x00, 0x7F}, // magenta
+	{0x8B, 0x00, 0xFF}, // violet
+	{0x00, 0x55, 0xFF}, // neon blue
+	{0xFF, 0x00, 0x00}, // bright red
+}
+
+func lerp(a, b uint8, t float64) uint8 {
+	return uint8(float64(a) + (float64(b)-float64(a))*t)
+}
+
+// gradientColor returns interpolated color at position t in [0,1] along the stops.
+func gradientColor(t float64) RGB {
+	if t <= 0 {
+		return gradientStops[0]
+	}
+	if t >= 1 {
+		return gradientStops[len(gradientStops)-1]
+	}
+	segCount := len(gradientStops) - 1
+	seg := t * float64(segCount)
+	idx := int(math.Floor(seg))
+	if idx >= segCount {
+		idx = segCount - 1
+	}
+	localT := seg - float64(idx)
+	return RGB{
+		R: lerp(gradientStops[idx].R, gradientStops[idx+1].R, localT),
+		G: lerp(gradientStops[idx].G, gradientStops[idx+1].G, localT),
+		B: lerp(gradientStops[idx].B, gradientStops[idx+1].B, localT),
+	}
+}
+
+// printGradientLine prints s with a horizontal TrueColor gradient.
+func printGradientLine(s string) {
+	n := len(s)
+	if n == 0 {
+		fmt.Println()
+		return
+	}
+	var sb strings.Builder
+	for i, r := range s {
+		c := gradientColor(float64(i) / float64(max(n-1, 1)))
+		sb.WriteString(fmt.Sprintf("\x1b[38;2;%d;%d;%dm%c", c.R, c.G, c.B, r))
+	}
+	sb.WriteString("\x1b[0m")
+	fmt.Println(sb.String())
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// ---------------------------------------------------------------------------
+// colors (prompts / status)
+// ---------------------------------------------------------------------------
+var (
+	cCVE       = color.New(color.FgHiCyan, color.Bold)
+	cAuthor    = color.New(color.FgHiYellow)
+	cPrompt    = color.New(color.FgHiGreen, color.Bold)
+	cInfo      = color.New(color.FgHiBlue)
+	cOK        = color.New(color.FgHiGreen, color.Bold)
+	cProtected = color.New(color.FgHiYellow, color.Bold)
+	cRedirect  = color.New(color.FgHiCyan, color.Bold)
+	cFail      = color.New(color.FgHiRed)
+	cWAF       = color.New(color.FgHiRed, color.Bold)
+	cSummary   = color.New(color.FgHiWhite, color.Bold)
+	cBox       = color.New(color.FgHiMagenta, color.Bold)
+)
+
+type Result struct {
+	URL      string
+	Status   int
+	Length   int
+	Location string
+	WAF      string
+	Label    string
+}
+
+// ---------------------------------------------------------------------------
+// banner — skull
+// ---------------------------------------------------------------------------
+func printBanner() {
+	skull := []string{
+		`         .-.             .-.         `,
+		`        /   \           /   \        `,
+		`       |     |         |     |       `,
+		`       |  .  |         |  .  |       `,
+		`       |     |         |     |       `,
+		`        \___/  \_____/  \___/        `,
+		`       .'   '.  |___|  .'   '.       `,
+		`      /       \/     \/       \      `,
+		`     |    .-.   .-.   .-.   .-|      `,
+		`     |    | |   | |   | |   | |      `,
+		`      \   '-'   '-'   '-'   '-'      `,
+		`       '-------------------------    `,
+		`        |  . . . . . . . . .  |      `,
+		`        |  . . . . . . . . .  |      `,
+		`         \___________________/       `,
+	}
+	for _, line := range skull {
+		printGradientLine(line)
+	}
+
+	title := `P A T H   B R U T E R`
+	printGradientLine(title)
+	printGradientLine(strings.Repeat("─", len(title)))
+	cCVE.Println("  directory / content discovery")
+	cAuthor.Println("  by K52-ai")
+	fmt.Println()
+}
+
+// ---------------------------------------------------------------------------
+// path loading
+// ---------------------------------------------------------------------------
 func loadPaths(filepath string) ([]string, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -88,9 +207,13 @@ func loadPaths(filepath string) ([]string, error) {
 	for p := range seen {
 		paths = append(paths, p)
 	}
+	sort.Strings(paths)
 	return paths, nil
 }
 
+// ---------------------------------------------------------------------------
+// probe
+// ---------------------------------------------------------------------------
 func detectWAF(resp *http.Response, body string) string {
 	var sb strings.Builder
 	for k, v := range resp.Header {
@@ -150,9 +273,14 @@ func probe(client *http.Client, base, path string, baselineLen int, baselineStat
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	bodyStr := string(body)
 
-	// Soft-404 check
-	if baselineStatus > 0 && resp.StatusCode == baselineStatus && len(body) == baselineLen {
-		return nil
+	if baselineStatus > 0 && resp.StatusCode == baselineStatus && baselineLen > 0 {
+		diff := len(body) - baselineLen
+		if diff < 0 {
+			diff = -diff
+		}
+		if float64(diff)/float64(baselineLen) < 0.05 {
+			return nil
+		}
 	}
 
 	label := classify(resp.StatusCode)
@@ -171,61 +299,105 @@ func probe(client *http.Client, base, path string, baselineLen int, baselineStat
 }
 
 func getBaseline(client *http.Client, base string) (int, int) {
-	url := strings.TrimRight(base, "/") + "/" + uuid.New().String()
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("User-Agent", userAgent)
-
-	resp, err := client.Do(req)
-	if err != nil {
+	lengths := make([]int, 0, 3)
+	statuses := make([]int, 0, 3)
+	for i := 0; i < 3; i++ {
+		url := strings.TrimRight(base, "/") + "/" + uuid.New().String()
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("User-Agent", userAgent)
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		resp.Body.Close()
+		lengths = append(lengths, len(body))
+		statuses = append(statuses, resp.StatusCode)
+	}
+	if len(lengths) == 0 {
 		return 0, 0
 	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	return len(body), resp.StatusCode
+	sort.Ints(lengths)
+	median := lengths[len(lengths)/2]
+	counts := make(map[int]int)
+	for _, s := range statuses {
+		counts[s]++
+	}
+	bestStatus, bestCount := 0, 0
+	for s, c := range counts {
+		if c > bestCount {
+			bestStatus, bestCount = s, c
+		}
+	}
+	return median, bestStatus
 }
 
-func main() {
-	fmt.Println("Path Bruter Tool by K5E-ai")
-	fmt.Println("=====================================")
-	fmt.Println()
+// ---------------------------------------------------------------------------
+// pretty prompts
+// ---------------------------------------------------------------------------
+func promptString(reader *bufio.Reader, label string) string {
+	cBox.Print("  ┌─[ ")
+	cPrompt.Print(label)
+	cBox.Println(" ]")
+	cBox.Print("  └──▶ ")
+	s, _ := reader.ReadString('\n')
+	return strings.TrimSpace(s)
+}
 
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
+func main() {
+	var (
+		targetFlag   string
+		wordlistFlag string
+	)
+	flag.StringVar(&targetFlag, "u", "", "target URL")
+	flag.StringVar(&wordlistFlag, "w", "", "wordlist file")
+	flag.Parse()
+
+	printBanner()
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Target: ")
-	target, _ := reader.ReadString('\n')
-	target = strings.TrimSpace(target)
+	target := targetFlag
 	if target == "" {
-		fmt.Println("[-] No target provided.")
+		target = promptString(reader, "target")
+	}
+	if target == "" {
+		cFail.Println("  [-] No target provided.")
 		os.Exit(1)
 	}
+	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+		target = "https://" + target
+	}
 
-	fmt.Print("Wordlist file: ")
-	wordlist, _ := reader.ReadString('\n')
-	wordlist = strings.TrimSpace(wordlist)
+	wordlist := wordlistFlag
 	if wordlist == "" {
-		fmt.Println("[-] No wordlist provided.")
+		wordlist = promptString(reader, "wordlist")
+	}
+	if wordlist == "" {
+		cFail.Println("  [-] No wordlist provided.")
 		os.Exit(1)
 	}
-
 	if _, err := os.Stat(wordlist); os.IsNotExist(err) {
-		fmt.Printf("[-] File not found: %s\n", wordlist)
+		cFail.Printf("  [-] File not found: %s\n", wordlist)
 		os.Exit(1)
 	}
 
 	base := strings.TrimRight(target, "/")
 	paths, err := loadPaths(wordlist)
 	if err != nil || len(paths) == 0 {
-		fmt.Println("[-] No paths loaded from wordlist.")
+		cFail.Println("  [-] No paths loaded from wordlist.")
 		os.Exit(1)
 	}
 
 	fmt.Println()
-	fmt.Printf("[+] Target:   %s\n", base)
-	fmt.Printf("[+] Wordlist: %s\n", wordlist)
-	fmt.Printf("[+] Paths:    %d\n", len(paths))
-	fmt.Println()
-	fmt.Println("[*] Testing...")
+	cBox.Println("  ╭──────────────────────────────────────╮")
+	cInfo.Printf("  │ target    : %-24s│\n", base)
+	cInfo.Printf("  │ wordlist  : %-24s│\n", wordlist)
+	cInfo.Printf("  │ paths     : %-24d│\n", len(paths))
+	cInfo.Printf("  │ workers   : %-24d│\n", concurrent)
+	cBox.Println("  ╰──────────────────────────────────────╯")
 	fmt.Println()
 
 	client := &http.Client{
@@ -239,75 +411,89 @@ func main() {
 		},
 	}
 
-	fmt.Println("[*] Probing baseline (soft-404 detection)...")
+	cInfo.Println("  [*] probing baseline (soft-404 detection, 3 samples)...")
 	baseLen, baseStatus := getBaseline(client, base)
 	if baseStatus > 0 {
-		fmt.Printf("[*] Baseline: status=%d length=%d\n", baseStatus, baseLen)
+		cInfo.Printf("  [*] baseline: status=%d length=%d\n", baseStatus, baseLen)
 	}
 	fmt.Println()
 
-	sem := make(chan struct{}, concurrent)
+	bar := progressbar.NewOptions(len(paths),
+		progressbar.OptionSetDescription("  scanning"),
+		progressbar.OptionSetWidth(40),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "█",
+			SaucerHead:    "█",
+			SaucerPadding: "░",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}),
+	)
+
+	jobs := make(chan string, len(paths))
+	resultsCh := make(chan Result, len(paths))
 	var wg sync.WaitGroup
-	var mu sync.Mutex
+
+	for i := 0; i < concurrent; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for path := range jobs {
+				if res := probe(client, base, path, baseLen, baseStatus); res != nil {
+					resultsCh <- *res
+				}
+				bar.Add(1)
+			}
+		}()
+	}
+
+	go func() {
+		for _, p := range paths {
+			jobs <- p
+		}
+		close(jobs)
+		wg.Wait()
+		close(resultsCh)
+	}()
 
 	var results []Result
 	wafsFound := make(map[string]bool)
-
-	for _, p := range paths {
-		wg.Add(1)
-		sem <- struct{}{}
-
-		go func(path string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			res := probe(client, base, path, baseLen, baseStatus)
-			mu.Lock()
-			defer mu.Unlock()
-
-			if res == nil {
-				fmt.Printf("[no]         %s   [filtered]\n", base+path)
-				return
+	for r := range resultsCh {
+		if r.WAF != "" {
+			wafsFound[r.WAF] = true
+		}
+		switch r.Label {
+		case "OK":
+			cOK.Printf("  [OK]         %s   [%d]\n", r.URL, r.Status)
+		case "PROTECTED":
+			cProtected.Printf("  [PROTECTED]  %s   [%d]\n", r.URL, r.Status)
+		case "REDIRECT":
+			loc := ""
+			if r.Location != "" {
+				loc = " -> " + r.Location
 			}
-
-			if res.WAF != "" {
-				wafsFound[res.WAF] = true
-			}
-
-			switch res.Label {
-			case "OK":
-				fmt.Printf("[OK]         %s   [%d]\n", res.URL, res.Status)
-			case "PROTECTED":
-				fmt.Printf("[PROTECTED]  %s   [%d]\n", res.URL, res.Status)
-			case "REDIRECT":
-				loc := ""
-				if res.Location != "" {
-					loc = " -> " + res.Location
-				}
-				fmt.Printf("[REDIRECT]   %s   [%d]%s\n", res.URL, res.Status, loc)
-			}
-			results = append(results, *res)
-		}(p)
+			cRedirect.Printf("  [REDIRECT]   %s   [%d]%s\n", r.URL, r.Status, loc)
+		}
+		results = append(results, r)
 	}
 
-	wg.Wait()
-
-	// Save
 	out, _ := os.Create("found.txt")
-	defer out.Close()
 	for _, r := range results {
 		fmt.Fprintln(out, r.URL)
 	}
+	out.Close()
 
 	fmt.Println()
-	fmt.Println("=====================================")
+	cBox.Println(strings.Repeat("═", 46))
 
 	if len(wafsFound) > 0 {
-		var wafList []string
+		wafList := make([]string, 0, len(wafsFound))
 		for w := range wafsFound {
 			wafList = append(wafList, w)
 		}
-		fmt.Printf("[!] WAF Detected: %s\n", strings.Join(wafList, ", "))
+		sort.Strings(wafList)
+		cWAF.Printf("  [!] WAF detected: %s\n", strings.Join(wafList, ", "))
 	}
 
 	okCount, protCount, redirCount := 0, 0, 0
@@ -322,9 +508,13 @@ func main() {
 		}
 	}
 
-	fmt.Printf("[+] OK:         %d\n", okCount)
-	fmt.Printf("[+] Protected:  %d\n", protCount)
-	fmt.Printf("[+] Redirects:  %d\n", redirCount)
-	fmt.Printf("[+] Total:      %d\n", len(results))
-	fmt.Println("[+] Saved to:   found.txt")
+	fmt.Println()
+	cSummary.Println("  ┌─────────────────────────────────────┐")
+	cSummary.Printf("  │  OK         : %-22d│\n", okCount)
+	cSummary.Printf("  │  Protected  : %-22d│\n", protCount)
+	cSummary.Printf("  │  Redirects  : %-22d│\n", redirCount)
+	cSummary.Printf("  │  Total      : %-22d│\n", len(results))
+	cSummary.Println("  └─────────────────────────────────────┘")
+	fmt.Println()
+	cInfo.Println("  [+] saved to: found.txt")
 }
