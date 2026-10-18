@@ -1,110 +1,121 @@
+
 🚀 PATH-BRUTER
 
 ⚡ A fast HTTP path discovery tool written in Go
+
 PATH-BRUTER is a command-line tool for authorized web security testing. It checks candidate URL paths using a wordlist, analyzes HTTP status codes, detects basic WAF indicators, and saves matching URLs to a file.
 
 ✨ Features
 
-* ⚡ Concurrent HTTP requests
-* 📂 Custom wordlist support
-* 🌐 HTTP status code classification
-* 🛡️ Basic WAF detection
-* 🔄 Redirect detection
-* 🔍 Basic soft-404 filtering
-* 💾 Saves results to found.txt
+⚡ Concurrent HTTP requests
+📂 Custom wordlist support
+🌐 HTTP status code classification
+🛡️ Basic WAF detection
+🔄 Redirect detection
+🔍 Basic soft-404 filtering
+💾 Saves results to found.txt
 
 📋 Requirements
 
-* 🐧 Linux
-* 🐹 Go 1.21 or later
-* 📦 Git
-* 📝 A wordlist text file
+🐧 Linux
+🐹 Go 1.21 or later
+📦 Git
+📝 A wordlist text file
 
 🛠️ Installation
 
-1. Update package lists
+Step 1 — Update package lists
 
-sudo apt update
+    sudo apt update
 
-2. Install Git and Go
+Step 2 — Install Git and Go
 
-sudo apt install -y git golang-go
+    sudo apt install -y git golang-go
 
-3. Check your Go version
+Step 3 — Check your Go version
 
-go version
+    go version
 
 Go 1.21 or later is required. If your version is older, install a newer version from https://go.dev/dl/
-4. Clone the repository
 
-git clone https://github.com/K52-ai/path-bruter.git
+Step 4 — Clone the repository
 
-5. Enter the project directory
+    git clone https://github.com/K52-ai/path-bruter.git
 
-cd path-bruter
+Step 5 — Enter the project directory
 
-6. Download dependencies
+    cd path-bruter
 
-go mod download
+Step 6 — Download dependencies
 
-7. Build the tool
+    go mod download
 
-go build -o path-bruter main.go
+Step 7 — Build the tool
 
-8. Make it executable
+    go build -o path-bruter main.go
 
-chmod +x path-bruter
+Step 8 — Make it executable
+
+    chmod +x path-bruter
 
 ▶️ Usage
 
-1. Start PATH-BRUTER
+Step 1 — Start PATH-BRUTER
 
-./path-bruter
+    ./path-bruter
 
-2. Enter your authorized target URL when prompted
-Example: https://example.com
-3. Enter your wordlist filename when prompted
-Example: wordlist.txt
+Step 2 — Enter your authorized target URL when prompted
+
+    Example: https://example.com
+
+Step 3 — Enter your wordlist filename when prompted
+
+    Example: wordlist.txt
 
 📝 Create a Wordlist
 
-Create a file:
+Step 1 — Create a file
 
-nano wordlist.txt
+    nano wordlist.txt
 
-Example contents:
+Step 2 — Add one path per line
 
-admin
-login
-api
-robots.txt
-sitemap.xml
+    admin
+    login
+    api
+    robots.txt
+    sitemap.xml
 
-Save the file and exit the editor.
+Step 3 — Save the file and exit the editor
 
 📊 Results
 
-* 🟢 OK — selected successful HTTP status codes
-* 🔒 PROTECTED — HTTP 401 or 403
-* 🔄 REDIRECT — HTTP redirect responses
-    Results are saved to found.txt.
-    View results
+🟢 OK — selected successful HTTP status codes
+🔒 PROTECTED — HTTP 401 or 403
+🔄 REDIRECT — HTTP redirect responses
 
-cat found.txt
+Results are saved to found.txt.
 
-Count saved entries
+Step 1 — View results
 
-wc -l found.txt
+    cat found.txt
+
+Step 2 — Count saved entries
+
+    wc -l found.txt
 
 🖼️ Screenshots
 
-Add your actual screenshots to the assets/ folder, then use:
+Add your actual screenshots to the assets/ folder, then reference them:
+
+    ![PATH-BRUTER](assets/screenshot.png)
+
 ⚠️ Important Notes
 
-* 🛡️ WAF detection uses basic signatures and may not identify every WAF.
-* 🔍 Soft-404 filtering may produce inaccurate results.
-* 🔐 TLS certificate verification is disabled in the current implementation.
-* ⚡ Request concurrency is configured in the source code.
+🛡️ WAF detection uses basic signatures and may not identify every WAF.
+🔍 Soft-404 filtering may produce inaccurate results.
+🔐 TLS certificate verification is disabled in the current implementation.
+⚡ Request concurrency is configured in the source code.
 
 ⚖️ Responsible Use
 
@@ -118,6 +129,5 @@ MIT License. See LICENSE for details.
 
 K52-ai
 🔗 GitHub Repository
-<img width="1102" height="600" alt="image" src="https://github.com/user-attachments/assets/be2934bd-dda7-47a5-a081-6d9cbd4027d7" />
 
-
+![image](https://github.com/user-attachments/assets/be2934bd-dda7-47a5-a081-6d9cbd4027d7)
