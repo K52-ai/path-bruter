@@ -45,23 +45,19 @@ var wafSignatures = map[string]string{
 	"wordfence":    "Wordfence",
 }
 
-// ---------------------------------------------------------------------------
-// TrueColor gradient — FF007F → 8B00FF → 0055FF → FF0000
-// ---------------------------------------------------------------------------
 type RGB struct{ R, G, B uint8 }
 
 var gradientStops = []RGB{
-	{0xFF, 0x00, 0x7F}, // magenta
-	{0x8B, 0x00, 0xFF}, // violet
-	{0x00, 0x55, 0xFF}, // neon blue
-	{0xFF, 0x00, 0x00}, // bright red
+	{0xFF, 0x00, 0x7F},
+	{0x8B, 0x00, 0xFF},
+	{0x00, 0x55, 0xFF},
+	{0xFF, 0x00, 0x00},
 }
 
 func lerp(a, b uint8, t float64) uint8 {
 	return uint8(float64(a) + (float64(b)-float64(a))*t)
 }
 
-// gradientColor returns interpolated color at position t in [0,1] along the stops.
 func gradientColor(t float64) RGB {
 	if t <= 0 {
 		return gradientStops[0]
@@ -83,7 +79,6 @@ func gradientColor(t float64) RGB {
 	}
 }
 
-// printGradientLine prints s with a horizontal TrueColor gradient.
 func printGradientLine(s string) {
 	n := len(s)
 	if n == 0 {
@@ -106,9 +101,6 @@ func max(a, b int) int {
 	return b
 }
 
-// ---------------------------------------------------------------------------
-// colors (prompts / status)
-// ---------------------------------------------------------------------------
 var (
 	cCVE       = color.New(color.FgHiCyan, color.Bold)
 	cAuthor    = color.New(color.FgHiYellow)
@@ -132,9 +124,6 @@ type Result struct {
 	Label    string
 }
 
-// ---------------------------------------------------------------------------
-// banner — skull
-// ---------------------------------------------------------------------------
 func printBanner() {
 	skull := []string{
 		`         .-.             .-.         `,
@@ -165,9 +154,6 @@ func printBanner() {
 	fmt.Println()
 }
 
-// ---------------------------------------------------------------------------
-// path loading
-// ---------------------------------------------------------------------------
 func loadPaths(filepath string) ([]string, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -211,9 +197,6 @@ func loadPaths(filepath string) ([]string, error) {
 	return paths, nil
 }
 
-// ---------------------------------------------------------------------------
-// probe
-// ---------------------------------------------------------------------------
 func detectWAF(resp *http.Response, body string) string {
 	var sb strings.Builder
 	for k, v := range resp.Header {
@@ -332,9 +315,6 @@ func getBaseline(client *http.Client, base string) (int, int) {
 	return median, bestStatus
 }
 
-// ---------------------------------------------------------------------------
-// pretty prompts
-// ---------------------------------------------------------------------------
 func promptString(reader *bufio.Reader, label string) string {
 	cBox.Print("  ┌─[ ")
 	cPrompt.Print(label)
@@ -344,9 +324,6 @@ func promptString(reader *bufio.Reader, label string) string {
 	return strings.TrimSpace(s)
 }
 
-// ---------------------------------------------------------------------------
-// main
-// ---------------------------------------------------------------------------
 func main() {
 	var (
 		targetFlag   string
